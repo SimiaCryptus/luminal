@@ -69,26 +69,19 @@ impl GraphTensor {
         GraphTensor::from_id(id, indexes.shape.contiguous(), self.graph_ref, self.dtype)
     }
 
-    // /// Take a slice of the original tensor. Any dimension with bounds becomes a dynamic dimension
-    // pub fn slice(mut self, slice: impl ToSlice) -> GraphTensor {
-    //     let ranges = slice.to_range_vec();
-    //     // This exists because currently padding and slicing on the same dimension (even on opposite sides) is unsupported
-    //     if ranges.iter().zip(self.shape.indexes).any(|(range, ind)| {
-    //         (range.0 != 0 || range.1 != i32::MAX)
-    //             && (self.shape.padding[self.shape.indexes[ind]].0 != 0
-    //                 || self.shape.padding[self.shape.indexes[ind]].1 != 0)
-    //     }) {
-    //         self = self.contiguous();
-    //     }
-    //     self.shape.slice(&ranges);
-    //     self
-    // }
 
-    // pub fn slice_along(self, slice: impl SliceRange, axis: usize) -> GraphTensor {
-    //     let mut s = vec![(Expression::from(0), Expression::from(i32::MAX)); axis + 1];
-    //     s[axis] = slice.bounds();
-    //     self.slice(s)
-    // }
+    /// Take a slice of the original tensor. Any dimension with bounds becomes a dynamic dimension
+    pub fn slice(mut self, slice: impl ToSlice) -> GraphTensor {
+        let ranges = slice.to_range_vec();
+        self.shape.slice(&ranges);
+        self
+    }
+
+    pub fn slice_along(self, slice: impl SliceRange, axis: usize) -> GraphTensor {
+        let mut s = vec![(Expression::from(0), Expression::from(i32::MAX)); self.shape.len()];
+        s[axis] = slice.bounds();
+        self.slice(s)
+    }
 
     // /// Cut out 'size' elements every 'spacing' elements in the last dimension. 'size' must be smaller than the last dimension
     // pub fn excise(mut self, spacing: usize, size: usize) -> GraphTensor {

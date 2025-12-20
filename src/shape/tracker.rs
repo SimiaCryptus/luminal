@@ -7,6 +7,7 @@ use crate::prelude::*;
 pub struct ShapeTracker {
     pub dims: ArrayVec<[Expression; 10]>,
     pub strides: ArrayVec<[Expression; 10]>,
+    pub physical_offset: Expression,
 }
 
 impl ShapeTracker {
@@ -15,6 +16,7 @@ impl ShapeTracker {
         let mut s = Self {
             dims: Default::default(),
             strides: Default::default(),
+            physical_offset: 0.into(),
         };
         let mut stride = Expression::from(1);
         for d in dims.to_shape().into_iter().rev() {
@@ -30,6 +32,7 @@ impl ShapeTracker {
         let mut s = Self {
             dims: Default::default(),
             strides: Default::default(),
+            physical_offset: 0.into(),
         };
         for d in dims.to_shape().into_iter() {
             s.dims.push(d);
@@ -50,6 +53,7 @@ impl ShapeTracker {
         let mut s = Self {
             dims: Default::default(),
             strides: Default::default(),
+            physical_offset: 0.into(),
         };
         for (dim, stride) in dims.into_iter().zip(strides) {
             s.dims.push(dim);
@@ -127,9 +131,9 @@ impl ShapeTracker {
     /// Create an expression to translate logical indexes into physical indexes, without expression simplification
     pub fn index_expression_no_simplify(&self) -> Expression {
         if self.is_contiguous() {
-            return 'z'.into();
+            return Expression::from('z') + self.physical_offset;
         }
-        let mut ind_expr = 0.into(); // The final index expression
+        let mut ind_expr = self.physical_offset; // The final index expression
         let mut current_elem_size = Expression::from(1); // Keep track of the size of each element of the current dim (last dim elem size: 1)
 
         // Loop through all dims in reverse order
@@ -234,7 +238,12 @@ impl ShapeTracker {
         dyn_dim_map: &FxHashMap<char, usize>,
         stack: &mut Vec<i64>,
     ) {
-        for d in self.dims.iter_mut().chain(&mut self.strides) {
+        for d in self
+            .dims
+            .iter_mut()
+            .chain(&mut self.strides)
+            .chain(std::iter::once(&mut self.physical_offset))
+        {
             for t in d.terms.write().iter_mut() {
                 if let Term::Var(v) = *t
                     && let Some(val) = dyn_dim_map.get(&v)
@@ -266,6 +275,18 @@ impl ShapeTracker {
         self.strides.insert(axis + 1, self.strides[axis]);
         self.dims[axis] /= new_dim_size;
         self.strides[axis] *= new_dim_size;
+    }
+    /// Slice the shape
+    pub fn slice(&mut self, ranges: &[(impl Into<Expression> + Clone, impl Into<Expression> + Clone)]) {
+        for (i, (start, end)) in ranges.iter().enumerate() {
+            let start = start.clone().into();
+            let mut end = end.clone().into();
+            if end.to_usize() == Some(i32::MAX as usize) {
+                end = self.dims[i];
+            }
+            self.physical_offset += start * self.strides[i];
+            self.dims[i] = end - start;
+        }
     }
 }
 

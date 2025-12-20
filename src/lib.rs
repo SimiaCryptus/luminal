@@ -10,6 +10,9 @@ pub mod utils;
 
 pub mod tests;
 
+#[cfg(target_os = "macos")]
+mod run;
+
 pub mod prelude {
     pub use crate::compiler_utils::*;
     pub use crate::generic_compiler::*;
