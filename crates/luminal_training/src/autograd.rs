@@ -208,11 +208,6 @@ fn add_grad(
             pre_fwd_shape.remove_dim(*dim);
         }
         if grad.shape.dims != pre_fwd_shape.dims {
-            todo!("contiguous doesn't exist anymore, handle this a different way");
-            // if !grad.shape.is_contiguous() {
-            //     grad = grad.contiguous();
-            // }
-            // grad.shape = pre_fwd_shape.contiguous();
         }
     }
 
