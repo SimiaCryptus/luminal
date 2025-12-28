@@ -15,6 +15,7 @@ impl GraphTensor {
                 .input(id, 0, shape)
                 .finish();
             shape.remove_dim(dim);
+            shape = shape.contiguous();
         }
         GraphTensor::from_id(id, shape.contiguous(), self.graph_ref, self.dtype)
     }
@@ -30,6 +31,7 @@ impl GraphTensor {
                 .input(id, 0, shape)
                 .finish();
             shape.remove_dim(dim);
+            shape = shape.contiguous();
         }
         GraphTensor::from_id(id, shape.contiguous(), self.graph_ref, self.dtype)
     }

@@ -284,7 +284,7 @@ impl ShapeTracker {
             if end.to_usize() == Some(i32::MAX as usize) {
                 end = self.dims[i];
             }
-            self.physical_offset += start * self.strides[i];
+            self.physical_offset += self.strides[i].clone().substitute('z', start.clone());
             self.dims[i] = end - start;
         }
     }

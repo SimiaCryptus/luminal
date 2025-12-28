@@ -208,6 +208,13 @@ fn add_grad(
             pre_fwd_shape.remove_dim(*dim);
         }
         if grad.shape.dims != pre_fwd_shape.dims {
+            for (i, dim) in pre_fwd_shape.dims.iter().enumerate() {
+                if grad.shape.dims.len() <= i || grad.shape.dims[i] != *dim {
+                    if *dim == 1 {
+                        grad.shape.expand_dim(i, 1);
+                    }
+                }
+            }
         }
     }
 
@@ -348,4 +355,50 @@ mod tests {
         let d_grads = d_b.backward();
         assert_close(&get_vec(grads[0], &mut cx), &d_grads.get(&d_a).as_vec());
     }
+
+    #[test]
+    fn test_autograd_sub() {
+        let mut cx = Graph::new();
+        let a = cx.named_tensor("A", 1).set([10.]);
+        let b = cx.named_tensor("B", 1).set([3.]);
+        let output = a - b;
+
+        let grads = cx.compile(Autograd::new(a, output), ());
+        cx.keep_tensors(&grads);
+        cx.execute();
+
+        let grad_vec = get_vec(grads[0], &mut cx);
+        assert_eq!(grad_vec, vec![1.0]);
+    }
+
+    #[test]
+    fn test_autograd_sigmoid() {
+        let mut cx = Graph::new();
+        let input = cx.named_tensor("Input", 1).set([0.]);
+        let output = input.sigmoid();
+
+        let grads = cx.compile(Autograd::new(input, output), ());
+        cx.keep_tensors(&grads);
+        cx.execute();
+
+        let grad_vec = get_vec(grads[0], &mut cx);
+        // Sigmoid(0) = 0.5. Grad = 0.5 * (1 - 0.5) = 0.25
+        assert!((grad_vec[0] - 0.25).abs() < 1e-4);
+    }
+
+    #[test]
+    fn test_autograd_reshape() {
+        let mut cx = Graph::new();
+        let input = cx.named_tensor("Input", 4).set([1., 2., 3., 4.]);
+        // Split dims: 4 -> (2, 2)
+        let output = input.split_dims(0, 2).sum(1).sum(0);
+
+        let grads = cx.compile(Autograd::new(input, output), ());
+        cx.keep_tensors(&grads);
+        cx.execute();
+
+        let grad_vec = get_vec(grads[0], &mut cx);
+        assert_eq!(grad_vec, vec![1.0, 1.0, 1.0, 1.0]);
+    }
+
 }

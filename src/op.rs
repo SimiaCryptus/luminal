@@ -669,8 +669,17 @@ impl EgglogOp for LessThan {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Gather;
 impl Operator for Gather {
-    fn process(&mut self, _: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        todo!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (idxs, src) = (get_vec(&inp[0].0), get_vec(&inp[1].0));
+        let idx_expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let src_expr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
+        let mut stack = vec![];
+        let mut out_data = vec![0.; inp[0].1.n_elements().to_usize().unwrap()];
+        for (i, out) in out_data.iter_mut().enumerate() {
+            let idx_val = get_index(idxs, &idx_expr, &mut stack, i);
+            *out = get_index(src, &src_expr, &mut stack, idx_val as usize);
+        }
+        vec![Tensor::new(out_data)]
     }
 
     fn to_egglog(&self, inputs: &Vec<(NodeIndex, String, ShapeTracker)>) -> String {
@@ -704,8 +713,8 @@ pub struct SumReduce(pub usize);
 impl Operator for SumReduce {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         let sh = inp[0].1.shape_usize();
-        let front_size = sh.iter().take(self.0).product::<usize>().max(1);
-        let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
+        let front_size = sh.iter().take(self.0).product::<usize>();
+        let back_size = sh.iter().skip(self.0 + 1).product::<usize>();
         let dim_size = sh[self.0];
         let mut result = vec![0.0; front_size * back_size];
         let input = get_vec(&inp[0].0);
@@ -758,8 +767,8 @@ pub struct MaxReduce(pub usize);
 impl Operator for MaxReduce {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         let sh = inp[0].1.shape_usize();
-        let front_size = sh.iter().take(self.0).product::<usize>().max(1);
-        let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
+        let front_size = sh.iter().take(self.0).product::<usize>();
+        let back_size = sh.iter().skip(self.0 + 1).product::<usize>();
         let dim_size = sh[self.0];
         let mut result = vec![-f32::INFINITY; front_size * back_size];
         let input = get_vec(&inp[0].0);

@@ -18,7 +18,7 @@ pub struct Llama {
 
 impl Llama {
     pub fn init(
-        cx: &mut Graph,
+        graph: &mut Graph,
         batch: impl Into<Expression>,
         hidden: usize,
         intermediate: usize,
@@ -32,31 +32,31 @@ impl Llama {
         let n_kv_groups = n_heads / n_kv_heads;
         for l in 0..layers {
             w.push(LlamaLayer {
-                up: cx.named_tensor(
+                up: graph.named_tensor(
                     &format!("model.layers.{l}.mlp.up_proj.weight"),
                     (intermediate, hidden),
                 ),
-                gate: cx.named_tensor(
+                gate: graph.named_tensor(
                     &format!("model.layers.{l}.mlp.gate_proj.weight"),
                     (intermediate, hidden),
                 ),
-                down: cx.named_tensor(
+                down: graph.named_tensor(
                     &format!("model.layers.{l}.mlp.down_proj.weight"),
                     (hidden, intermediate),
                 ),
-                q_proj: cx.named_tensor(
+                q_proj: graph.named_tensor(
                     &format!("model.layers.{l}.self_attn.q_proj.weight"),
                     (hidden, hidden),
                 ),
-                k_proj: cx.named_tensor(
+                k_proj: graph.named_tensor(
                     &format!("model.layers.{l}.self_attn.k_proj.weight"),
                     (hidden / n_kv_groups, hidden),
                 ),
-                v_proj: cx.named_tensor(
+                v_proj: graph.named_tensor(
                     &format!("model.layers.{l}.self_attn.v_proj.weight"),
                     (hidden / n_kv_groups, hidden),
                 ),
-                o_proj: cx.named_tensor(
+                o_proj: graph.named_tensor(
                     &format!("model.layers.{l}.self_attn.o_proj.weight"),
                     (hidden, hidden),
                 ),
@@ -66,7 +66,7 @@ impl Llama {
                     None,
                     false,
                     1e-5,
-                    cx,
+                    graph,
                 ),
                 mlp_rms: LayerNorm::new(
                     hidden,
@@ -74,7 +74,7 @@ impl Llama {
                     None,
                     false,
                     1e-5,
-                    cx,
+                    graph,
                 ),
                 batch,
                 hidden,
@@ -83,10 +83,10 @@ impl Llama {
                 layer: l,
             });
         }
-        let lm_norm = LayerNorm::new(hidden, Some("model.norm.weight"), None, false, 1e-5, cx);
-        let lm_head = cx.named_tensor("lm_head.weight", (vocab_size, hidden));
+        let lm_norm = LayerNorm::new(hidden, Some("model.norm.weight"), None, false, 1e-5, graph);
+        let lm_head = graph.named_tensor("lm_head.weight", (vocab_size, hidden));
         Self {
-            embedding: cx.named_tensor("model.embed_tokens.weight", (vocab_size, hidden)),
+            embedding: graph.named_tensor("model.embed_tokens.weight", (vocab_size, hidden)),
             layers: w,
             lm_head,
             lm_norm,

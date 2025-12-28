@@ -17,16 +17,16 @@ impl LayerNorm {
         bias: Option<&str>,
         mean_norm: bool,
         epsilon: f32,
-        cx: &mut Graph,
+        graph: &mut Graph,
     ) -> Self {
         Self {
             weight: if let Some(w) = weight {
-                Some(cx.named_tensor(w, dim))
+                Some(graph.named_tensor(w, dim))
             } else {
                 None
             },
             bias: if let Some(b) = bias {
-                Some(cx.named_tensor(b, dim))
+                Some(graph.named_tensor(b, dim))
             } else {
                 None
             },
